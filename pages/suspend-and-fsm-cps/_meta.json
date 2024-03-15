@@ -1,5 +1,5 @@
 {
-    "what-is-suspend-function": "suspend() 함수",
+    "what-is-suspend-function": "suspend 함수",
     "fsm-and-cps": "FSM, CPS",
     "to-coroutine": "코루틴 코드로 바꿔보면"
 }
