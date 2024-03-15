@@ -1,7 +1,7 @@
 {
   "index": "Introduction",
-  "coroutine-useful-case": "코루틴 사용이 유익한 경우",
-  "suspend-and-fsm-cps": "suspend() 함수와 fsm,cps",
+  "coroutine-useful-case": "코루틴 사용이 더 나은 경우들",
+  "suspend-and-fsm-cps": "suspend() 함수와 FSM,CPS",
   "coroutine-context": "CoroutineContext",
   "coroutine-dispatcher": "CoroutineDispatcher",
   "coroutine-scope-and-structured-concurrency": "CoroutineScope, Structured Concurrency",
