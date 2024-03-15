@@ -6,11 +6,19 @@
 
 ![](./img/coroutine-context/async_launch_withcontext.png)
 
+<br/>
 
 
 
+## async 는 CoroutineScope 에 대해 선언한 확장함수다.
 
-### e.g. async 내에서 실제로 Continuation 을 사용할까?
+![](./img/coroutine-context/async-function.png)
+
+<br/>
+
+
+
+## e.g. async 내에서 실제로 Continuation 을 사용할까?
 
 사용한다.<br/>
 
@@ -24,7 +32,7 @@ async 함수 내에서도 Callstack을 타고 내려가다 보면 결국은 내�
 
 
 
-### Continuation\<Unit\>
+## Continuation\<Unit\>
 
 Continuation\<Unit\> 은 `kotlin.coroutines` 패키지에 정의되어 있는 interface 다.
 
