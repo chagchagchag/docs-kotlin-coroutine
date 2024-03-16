@@ -16,7 +16,7 @@ Kotlin 의 코루틴은 `runBlocking` 을 사용할 경우를 제외하고는  J
 
 e.g.
 
-```java
+```kotlin
 package io.chagchagchag.demo.kotlin_coroutine.coroutine_context
 
 import io.chagchagchag.demo.kotlin_coroutine.helper.logger
