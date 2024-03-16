@@ -134,13 +134,15 @@ public interface CoroutineContext {
 
 
 
-이 CombinedContext 자료구조에서는 여러개의 CoroutineContext 가 더해지거나 빼지거나 get 을 하기 위해 연산자 오버로딩이 되어 있습니다. 이번 Step 에서는 이렇게 특정 CoroutineContext 를 더하고 ,빼고, get 을 하는 것에 대한 예제를 살펴보겠습니다.<br/>
+이 CombinedContext 자료구조는 CoroutineContext 타입을 통해서 이루어지는 것이고 CombinedContext 는 CoroutineContext 를 구체화 했기에 CoroutineContext 가 지원하는 연산자 오버로딩이 적용 되니다. 예를 들면 여러개의 CoroutineContext 가 더해지거나 빼지거나 get 을 하기 위해 연산자 오버로딩이 되어 있습니다.<br/>
+
+이번 Step 에서는 이렇게 특정 CoroutineContext 를 더하고 ,빼고, get 을 하는 것에 대한 예제를 살펴보겠습니다.<br/>
 
 
 
 ### plus 연산
 
-CombinedContext 의 plus 연산은 아래와 같은 방식으로 이뤄집니다.
+CoroutineContext 의 plus 연산은 아래와 같은 방식으로 이뤄집니다.
 
 - EmptyCoroutineContext + Element 연산 = Element
   - Element 로 합쳐집니다. 
@@ -244,7 +246,90 @@ fun main(){
 
 ### minusKey 연산
 
+CombinedContext 의 minusKey 연산은 아래와 같은 방식으로 이뤄집니다. 요소를 삭제할 때에는 key 를 통해 해당 Element 가 있는지 조회해서 삭제합니다.
+
+- CombinedContext - Element = CombinedContext
+  - CombinedContext 에서 Element 를 하나 빼도 2개 이상인 경우에는 결과가 CombinedContext 가 됩니다.
+- CombinedContext - Element = Element
+  - CombinedContext 에서 Element를 하나 빼서 CoroutineContext가 1개가 되었을 경우에는  Element 가 됩니다.
+- Element - Element = EmptyCoroutineContext
+  - CoroutineContext 1개에서 CoroutineElement 1개를 빼므로 0개가 되어서 EmptyCoroutineContext 가 됩니다.
+
+
+
+아래는 예제 코드입니다.
+
 ```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.coroutine_context
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+
+@OptIn(ExperimentalStdlibApi::class)
+fun main(){
+  val log = logger()
+  // (1)
+  val context1 = CoroutineName("짬뽕") + Dispatchers.IO + Job()
+  log.info("context1 = $context1, 클래스 = ${context1.javaClass.simpleName}")
+  // (2)
+  val minus1 = context1.minusKey(Job)
+  log.info("minus1 = $minus1, 클래스 = ${minus1.javaClass.simpleName}")
+  // (3)
+  val minus2 = minus1.minusKey(Job)
+  log.info("minus2 = $minus2, 클래스 = ${minus2.javaClass.simpleName}")
+  // (4)
+  val minus3 = minus2.minusKey(CoroutineDispatcher)
+  log.info("minus3 = $minus3, 클래스 = ${minus3.javaClass.simpleName}")
+  // (5)
+  val minus4 = minus3.minusKey(CoroutineName)
+  log.info("minus4 = $minus4, 클래스 = ${minus4.javaClass.simpleName}")
+}
+```
+
+<br/>
+
+
+
+(1)
+
+- 3 종류의 CoroutineContext 를 더해서 3개의 CoroutineContext 가 존재하는 CombinedContext 를 만듭니다.
+- 따라서 결과값은 CombinedContext 가 출력됩니다.
+
+(2)
+
+- (1) 에서 추가한 Job 타입의 CoroutineContext 를 제거합니다. 출력결과를 보면 Job 타입의 CoroutineContext 가 제거되고 Dispatchers.IO, CoroutineName(짬뽕) 만 남습니다.
+- 코드와 출력결과를 통해 minusKey()의 인자에는 코틀린 클래스 (KClass) 타입을 넘기면 된다는 사실을 알수 있습니다.
+
+(3)
+
+- (2) 에서 했던 연산을 한번 더 해서 똑같이 Job 타입을 빼려 할 때 어떻게 되는지를 확인합니다. 
+- Job 타입은 이제 더 이상 CoroutineContext 내에 존재하지 않기에 출력결과는 달라지지 않습니다.
+
+(4)
+
+- CoroutineDispatcher 를 뺍니다. minusKey 를 통해 CoroutineContext 에 CoroutineDispatcher 타입이 있는지 검색한 후 CoroutineDispatcher 타입이 있다면 해당 타입을 CoroutineContext 에서 삭제합니다.
+- 출력결과는 CoroutineDispatcher 가 제거된 후의 결과값이 출력됩니다.
+
+(5)
+
+- 마지막으로 남은 CoroutineName 객체를 지웁니다.
+- minusKey 함수에 CoroutineName 클래스 타입을 전달해줬고, 정상적으로 CoroutineName 객체가 삭제되었습니다.
+
+<br/>
+
+
+
+출력결과
+
+```plain
+02:49:07.584 [main] INFO io...LoggingObject -- context1 = [CoroutineName(짬뽕), JobImpl{Active}@5e3a8624, Dispatchers.IO], 클래스 = CombinedContext
+02:49:07.587 [main] INFO io...LoggingObject -- minus1 = [CoroutineName(짬뽕), Dispatchers.IO], 클래스 = CombinedContext
+02:49:07.587 [main] INFO io...LoggingObject -- minus2 = [CoroutineName(짬뽕), Dispatchers.IO], 클래스 = CombinedContext
+02:49:07.589 [main] INFO io...LoggingObject -- minus3 = CoroutineName(짬뽕), 클래스 = CoroutineName
+02:49:07.590 [main] INFO io...LoggingObject -- minus4 = EmptyCoroutineContext, 클래스 = EmptyCoroutineContext
 ```
 
 <br/>
