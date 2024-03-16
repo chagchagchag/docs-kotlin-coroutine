@@ -339,6 +339,72 @@ fun main(){
 ### get 연산
 
 ```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.coroutine_context
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+
+@OptIn(ExperimentalStdlibApi::class)
+fun main(){
+  val log = logger()
+  // (0)
+  var multipleContexts = CoroutineName("배고파요") + Dispatchers.IO
+  // (1)
+  val hungryElement = multipleContexts[CoroutineName]
+  log.info("hungryElement = $hungryElement, 클래스 = ${hungryElement?.javaClass?.simpleName}")
+  // (2)
+  val dispatcherElement = multipleContexts[CoroutineDispatcher]
+  log.info("dispatcherElement = $dispatcherElement, 클래스 = ${dispatcherElement?.javaClass?.simpleName}")
+  // (3)
+  val dispatcherElementGet = multipleContexts[CoroutineDispatcher]
+  log.info("dispatcherElementGet = $dispatcherElementGet, 클래스 = ${dispatcherElementGet?.get(CoroutineDispatcher)}")
+  // (4)
+  val jobElement = multipleContexts[Job]
+  log.info("jobElement = $jobElement, 클래스 = ${jobElement?.get(Job)}")
+}
+```
+
+<br/>
+
+(0)
+
+- 예제를 위한 CombinedContext 를 만듭니다.
+- CoroutineName, Dispatchers.IO 를 더해서 총 2개의 CoroutineContext 가 존재하는 CombinedContext 를 생성합니다.
+
+(1)
+
+- CoroutineName 타입의 CoroutineContext Element가 CoroutineContext 내에 존재하는지 get 연산을 통해 조회합니다.
+- 존재하고 있기에 출력결과는 CoroutineName 이 출력됩니다.
+
+(2)
+
+- CoroutineDispatcher 타입의 CoroutineContext Element 가 CoroutineContext 내에 존재하는지 get 연산을 `[Key]` 연산을 통해 조회합니다.
+- 존재하고 있기에 출력결과는 CoroutineDispatcher 가 출력됩니다.
+
+(3)
+
+- CoroutineDispatcher 타입의 CoroutineContext Element 가 CoroutineContext 내에 존재하는지 get 연산을 `get(Key)` 메서드를 통해 조회합니다.
+- 존재하고 있기에 출력결과는 CoroutineDispatcher 가 출력됩니다.
+
+(4)
+
+- Job 타입의 CoroutineContext Element 가 CoroutineContext 내에 존재하는지 get 연산을 `[Key]` 연산을 통해 조회합니다.
+- 존재하지 않기에 출력결과는 null 이 출력됩니다.
+
+<br/>
+
+
+
+출력결과
+
+```plain
+03:21:28.908 [main] INFO io...LoggingObject -- hungryElement = CoroutineName(배고파요), 클래스 = CoroutineName
+03:21:28.918 [main] INFO io...LoggingObject -- dispatcherElement = Dispatchers.IO, 클래스 = DefaultIoScheduler
+03:21:28.919 [main] INFO io...LoggingObject -- dispatcherElementGet = Dispatchers.IO, 클래스 = Dispatchers.IO
+03:21:28.924 [main] INFO io...LoggingObject -- jobElement = null, 클래스 = null
 ```
 
 <br/>
