@@ -118,6 +118,9 @@ private suspend fun inner(){
     log.info("Continuation 객체 내의 context = ${continuation.context}")
     continuation.resume("OK")
   }
+    
+  // (4)
+  log.info("inner 함수 내애서의 result = $result")
 }
 ```
 
@@ -135,6 +138,10 @@ private suspend fun inner(){
 
 - (3) 에서는 `suspendCoroutine` 함수를 실행하고 있는데, `suspendCoroutine` 함수의 마지막인자인 람다를 이용하고 있습니다. 이 람다의 첫번째 인자는 `continuation` 타입인데, 이 continuation 타입 내의 `context` 필드를 통해서 CoroutineContext 필드에 접근이 가능합니다.
 
+(4)
+
+- suspendCoroutine 이 반환한 result 값을 받아서 확인해보니 정상적으로 돌려받았습니다. suspend 함수를 동기연산처럼 사용했습니다.
+
 <br/>
 
 
@@ -142,9 +149,10 @@ private suspend fun inner(){
 위의 코드에 대한 출력결과는 아래와 같습니다.
 
 ```plain
-21:33:20.779 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 현재 코루틴 스코프 내의 코루틴 컨텍스트 : [BlockingCoroutine{Active}@5ec0a365, BlockingEventLoop@4fe3c938]
-21:33:20.784 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- suspend 함수 내에서의 context [BlockingCoroutine{Active}@5ec0a365, BlockingEventLoop@4fe3c938]
-21:33:20.786 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- Continuation 객체 내의 context = [BlockingCoroutine{Active}@5ec0a365, BlockingEventLoop@4fe3c938]
+21:37:30.203 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 현재 코루틴 스코프 내의 코루틴 컨텍스트 : [BlockingCoroutine{Active}@5ec0a365, BlockingEventLoop@4fe3c938]
+21:37:30.210 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- suspend 함수 내에서의 context [BlockingCoroutine{Active}@5ec0a365, BlockingEventLoop@4fe3c938]
+21:37:30.213 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- Continuation 객체 내의 context = [BlockingCoroutine{Active}@5ec0a365, BlockingEventLoop@4fe3c938]
+21:37:30.213 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- inner 함수 내애서의 result = OK
 ```
 
 <br/>
