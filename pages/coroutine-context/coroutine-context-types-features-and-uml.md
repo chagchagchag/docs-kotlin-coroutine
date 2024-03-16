@@ -411,13 +411,138 @@ fun main(){
 
 
 
-## CoroutineContext 자료구조
+## CombinedContext 자료구조
+
+코틀린에서는 CorutineContext에 여러개의 CoroutineContext가 존재하면 CombinedContext 타이으로 이것을 관리합니다.
+
+![](./img/coroutine-context-types-features-and-uml/combined-context.png)
+
+
+
+CombinedContext 는 트리와 비슷한 모습의 자료구조인데, left, element 라는 필드를 지속해서 아래로 뻗어나가는 방식으로 돤리합니다.
+
+- left
+  - left 는 CombinedContext 또는 Element 를 가리킵니다.
+- element
+  - element 는 가장 최근에 추가된 element 를 가리키는 역할을 합니다.
+
+<br/>
+
+
+
+plus 연산을 통해 CoroutineContext 에 Element 를 추가할 때
+
+- 추가하려는 Element 가 CoroutineContext 내에 이미 존재하는 Element 일 경우에는 
+  - 기존의 Element 를 업데이트 해서 덮어씁니다.
+- 추가하려는 Element 가 CoroutineContext 내에 존재하지 않는 새로운 Element 일 경우에는
+  - CoroutineContext 의 left에 새로운 Element 를 element 필드로 갖는 CombinedContext 를 생성합니다.
+
+<br/>
+
+
+
+CombinedContext 클래스는 internal 클래스이며 [CoroutineContextImpl.kt](https://github.com/JetBrains/kotlin/blob/master/libraries/stdlib/src/kotlin/coroutines/CoroutineContextImpl.kt) 에서 확인가능합니다.
+
+멤버필드로 left, element 를 갖는  것을 확인 가능합니다.
+
+```kotlin
+// ...
+@SinceKotlin("1.3")
+internal class CombinedContext(
+    private val left: CoroutineContext,
+    private val element: Element
+) : CoroutineContext, Serializable {
+
+    override fun <E : Element> get(key: Key<E>): E? {
+        var cur = this
+        while (true) {
+            cur.element[key]?.let { return it }
+            val next = cur.left
+            if (next is CombinedContext) {
+                cur = next
+            } else {
+                return next[key]
+            }
+        }
+    }
+
+    public override fun <R> fold(initial: R, operation: (R, Element) -> R): R =
+        operation(left.fold(initial, operation), element)
+
+    public override fun minusKey(key: Key<*>): CoroutineContext {
+        element[key]?.let { return left }
+        val newLeft = left.minusKey(key)
+        return when {
+            newLeft === left -> this
+            newLeft === EmptyCoroutineContext -> element
+            else -> CombinedContext(newLeft, element)
+        }
+    }
+
+    private fun size(): Int {
+        var cur = this
+        var size = 2
+        while (true) {
+            cur = cur.left as? CombinedContext ?: return size
+            size++
+        }
+    }
+
+    private fun contains(element: Element): Boolean =
+        get(element.key) == element
+
+    private fun containsAll(context: CombinedContext): Boolean {
+        var cur = context
+        while (true) {
+            if (!contains(cur.element)) return false
+            val next = cur.left
+            if (next is CombinedContext) {
+                cur = next
+            } else {
+                return contains(next as Element)
+            }
+        }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CombinedContext && other.size() == size() && other.containsAll(this)
+
+    override fun hashCode(): Int = left.hashCode() + element.hashCode()
+
+    override fun toString(): String =
+        "[" + fold("") { acc, element ->
+            if (acc.isEmpty()) element.toString() else "$acc, $element"
+        } + "]"
+
+    private fun writeReplace(): Any {
+        val n = size()
+        val elements = arrayOfNulls<CoroutineContext>(n)
+        var index = 0
+        fold(Unit) { _, element -> elements[index++] = element }
+        check(index == n)
+        @Suppress("UNCHECKED_CAST")
+        return Serialized(elements as Array<CoroutineContext>)
+    }
+
+    private class Serialized(val elements: Array<CoroutineContext>) : Serializable {
+        companion object {
+            private const val serialVersionUID: Long = 0L
+        }
+
+        private fun readResolve(): Any = elements.fold(EmptyCoroutineContext, CoroutineContext::plus)
+    }
+}
+```
+
+<br/>
 
 
 
 ## 대표적인 CoroutineContext 의 종류들
 
-UML 과 함께 정리
+### Element 구현체들
+
+
 
 
 
