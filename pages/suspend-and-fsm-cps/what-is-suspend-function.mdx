@@ -26,7 +26,7 @@ suspend 함수를 선언하려면  suspend 라는 키워드를 함수 앞에 붙
 
 이런 코루틴을 사용하기 위해서는 `suspend` 키워드가 붙어 있어야만 가능하며 `suspend` 키워드는 함수에 붙일 수 있습니다. `suspend` 함수는 코틀린 언어가 실행될 수 있는 환경인 JVM 에 의해 실행됩니다.<br/>
 
-코틀린의 대표적인 `suspend` 기반의 함수들에는 `launch`, `async` , `runBlocking`, `withContext` 등이 있는데 이들 모두를 코루틴 빌더라고 이야기합니다.<br/>
+코틀린이 기본으로 제공하는 라이브러리 들 중 대표적인 `suspend` 기반의 함수들에는 `launch`, `async` , `runBlocking`, `withContext` 등이 있는데 이들 모두를 코루틴 빌더라고 이야기합니다.<br/>
 
 `launch` 함수는 반환값이 없는 Fire-and-forget 스타일의 코루틴을 생성하고 실행하며, `async` 함수는 비동기 작업의 결과를 리턴하는 코루틴을 만들어냅니다.<br/>
 
