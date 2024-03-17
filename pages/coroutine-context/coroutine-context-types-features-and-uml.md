@@ -6,7 +6,9 @@
 - [CoroutineContext](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.coroutines/-coroutine-context/)
 - [Element](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.coroutines/-coroutine-context/-element/), [EmptyCoroutineContext](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.coroutines/-empty-coroutine-context/), [CoroutineContextImpl.kt](https://github.com/JetBrains/kotlin/blob/master/libraries/stdlib/src/kotlin/coroutines/CoroutineContextImpl.kt)
 - [AbstractCoroutineContextElement](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.coroutines/-abstract-coroutine-context-element/) 
-- [CoroutineDispatcher](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/)
+  - [CoroutineName](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-name/)
+  - [CoroutineDispatcher](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/)
+
 
 <br/>
 
@@ -69,8 +71,8 @@ EmptyCoroutineContext, Element, CombinedContext interface 들은 모두 하나�
   - Element 는 Element 가 하나인 상태를 의미합니다. reactor 의 Mono 처럼 하나만 존재하는 Element 를 의미합니다.
   - 잘 알려져있는 Element 구현체 또는 타입으로는 CoroutineName, CoroutineDispatcher, CoroutineExceptionHandler, Job, ThreadContextElement 가 있습니다. 
   - 코틀린 라이브러리에서 많이 보이는 [AbstractCoroutineContextElement](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.coroutines/-abstract-coroutine-context-element/) 클래스는 Element 를 implements 한 abstract 클래스입니다.  
-  - 잘 알려져있는 [CoroutineDispatcher](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/) 클래스는 [AbstractCoroutineContextElement](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.coroutines/-abstract-coroutine-context-element/) 라고 하는 Element 타입을 extends 한 클래스입니다.
-  - 코틀린의 Job interface 역시 Element interface 를 extends 하고 있습니다.
+  - 잘 알려져있는 [CoroutineDispatcher](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/) 클래스, [CoroutineName](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-name/) 클래스는 [AbstractCoroutineContextElement](https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.coroutines/-abstract-coroutine-context-element/) 라고 하는 Element 타입을 extends 한 클래스입니다.
+  - 코틀린의 Job interface 역시 Element interface 를 extends 하고 있으며 
 - CombinedContext (참고 : [CoroutineContextImpl.kt](https://github.com/JetBrains/kotlin/blob/master/libraries/stdlib/src/kotlin/coroutines/CoroutineContextImpl.kt) )
   - `kotlin.coroutines` 패키지 내의 [CoroutineContextImpl.kt](https://github.com/JetBrains/kotlin/blob/master/libraries/stdlib/src/kotlin/coroutines/CoroutineContextImpl.kt) 파일에 정의되어 있는 internal 클래스입니다.
   - Element 를 두 개 이상 담을 때 사용하는 타입입니다.
@@ -540,7 +542,41 @@ internal class CombinedContext(
 
 ## 대표적인 CoroutineContext 의 종류들
 
-### Element 구현체들
+![](./img/coroutine-context-types-features-and-uml/uml.png)
+
+
+
+> TODO : 정리필요
+
+
+
+### AbstractCoroutineContextElement 타입
+
+- CoroutineName
+- CorutineDispatcher
+
+
+
+### CoroutineContext.Element 타입
+
+- CoroutineExceptionHandler
+- ThreadContextElement
+- Job
+
+
+
+#### CoroutineExceptionHandler
+
+#### ThreadContextElement
+
+#### Job
+
+JobSupport.kt 파일, Superviser.kt 파일에 주요 구현체가 있으며, JobSupport.kt 내에는 JobSupport 클래스 외에도 여러 클래스들이 존재합니다. 하지만, JobSupport 는 Deprecated 될 예정이기에 CompletedJob interface 내에서 다른 interface 를 확장(상속) 받는 방식으로 이 문제를 해결할 것으로 보입니다.
+
+복잡하게 정리했지만, 결국은 Job 역시도 CoroutineContext.Element 타입이라고 이해하면 된다. 이렇게 이해하면 편합니다.
+
+- Job
+- 
 
 
 
