@@ -1,1 +1,241 @@
 ## Job Cancelling
+
+부모 자식 관계로 얽힌 Job 들이 있을 때 특정 부모  Job 을 cancel 하면 그 아래의 자식 Job 들도 모두 cancel됩니다.<br/>
+
+하지만 자식 Job 을 cancel 했을 때 형제 Job 과 부모 Job은 cancel 되지 않습니다.<br/>
+
+
+
+## 부모 자식 관계의 Job
+
+중첩된 코루틴을 실행하면 자식 코루틴에서는 부모 코루틴을 parent 필드로 접근 가능합니다.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.job_cancelling
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+
+fun main(){
+  val log = logger()
+  runBlocking {
+    val scope = CoroutineScope(Dispatchers.Default)
+
+    log.info("첫번째 잡의 CoroutineContext : ${scope.coroutineContext[Job]}")
+    log.info("첫번째 잡의 CoroutineContext 의 부모 컨텍스트 : ${scope.coroutineContext[Job]?.parent}")
+
+    val job = scope.launch {
+      log.info("두번째 잡의 CoroutineContext : ${this.coroutineContext[Job]}")
+      log.info("두번째 잡의 CoroutineContext 의 부모 컨텍스트 : ${this.coroutineContext[Job]?.parent}")
+
+      launch {
+        log.info("세번째 잡의 CoroutineContext : ${this.coroutineContext[Job]}")
+        log.info("세번째 잡의 CoroutineContext 의 부모 컨텍스트 : ${this.coroutineContext[Job]?.parent}")
+      }
+
+      launch {
+        log.info("네번째 잡의 CoroutineContext : ${this.coroutineContext[Job]}")
+        log.info("네번째 잡의 CoroutineContext 의 부모 컨텍스트 : ${this.coroutineContext[Job]?.parent}")
+      }
+    }
+
+    job.join()
+  }
+}
+```
+
+<br/>
+
+
+
+출력결과를 보면 각자 자기자신의 부모 컨텍스트를 가지고 있다는 점이 확인 됩니다.<br/>
+
+
+
+출력결과
+
+```plain
+16:02:16.605 [main] INFO io...helper.LoggingObject -- 첫번째 잡의 CoroutineContext : JobImpl{Active}@6f1fba17
+16:02:16.608 [main] INFO io...helper.LoggingObject -- 첫번째 잡의 CoroutineContext 의 부모 컨텍스트 : null
+16:02:16.628 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- 두번째 잡의 CoroutineContext : StandaloneCoroutine{Active}@14b7bd1f
+16:02:16.629 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- 두번째 잡의 CoroutineContext 의 부모 컨텍스트 : JobImpl{Active}@6f1fba17
+16:02:16.631 [DefaultDispatcher-worker-2] INFO io...helper.LoggingObject -- 세번째 잡의 CoroutineContext : StandaloneCoroutine{Active}@664ab5a4
+16:02:16.631 [DefaultDispatcher-worker-2] INFO io...helper.LoggingObject -- 세번째 잡의 CoroutineContext 의 부모 컨텍스트 : StandaloneCoroutine{Active}@14b7bd1f
+16:02:16.632 [DefaultDispatcher-worker-2] INFO io...helper.LoggingObject -- 네번째 잡의 CoroutineContext : StandaloneCoroutine{Active}@1ae42a21
+16:02:16.632 [DefaultDispatcher-worker-2] INFO io...helper.LoggingObject -- 네번째 잡의 CoroutineContext 의 부모 컨텍스트 : StandaloneCoroutine{Completing}@14b7bd1f
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+## cancel
+
+
+
+### 부모 Job Cancel
+
+코드 : ParentJobCancelling3.kt
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.job_cancelling
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+  runBlocking {
+    val outerScope = CoroutineScope(EmptyCoroutineContext)
+
+    val outerJob = outerScope.launch {
+      launch {
+        try{
+          delay(1000)
+          log.info("배고파요")
+        }
+        catch (e: Exception){
+          log.info("배고픈데 취소됐어요")
+          log.info("e = ${e.message}")
+        }
+      }
+
+      launch {
+        try{
+          delay(1000)
+          log.info("밥먹어요")
+        }
+        catch (e: Exception){
+          log.info("밥 취소되었어요 ㅠㅠ")
+          log.info("e = ${e.message}")
+        }
+      }
+
+      delay(1000)
+      log.info("밥 다 먹었어요")
+    }
+
+    delay(300)
+    outerJob.cancelAndJoin()
+  }
+}
+```
+
+위 코드를 실행한 결과는 아래와 같습니다.<br/>
+
+배고파요, 밥먹어요가 모두 취소되었습니다. 부모 잡인 `outerJob` 을 취소했을 때 배고파요, 밥먹어요로 모두 cancellation 이 전파되었기 때문입니다.<br/>
+
+
+
+출력결과
+
+```plain
+16:58:28.290 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- 배고픈데 취소됐어요
+16:58:28.291 [DefaultDispatcher-worker-2] INFO io...helper.LoggingObject -- 밥 취소되었어요 ㅠㅠ
+16:58:28.294 [DefaultDispatcher-worker-2] INFO io...helper.LoggingObject -- e = StandaloneCoroutine was cancelled
+16:58:28.294 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- e = StandaloneCoroutine was cancelled
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+### 자식 Job 에서 예외 throw 
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.job_cancelling
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+  runBlocking {
+    val outerScope = CoroutineScope(EmptyCoroutineContext)
+
+    val outerJob = outerScope.launch {
+      val hungry = launch {
+        try{
+          delay(1000)
+          log.info("배고파요")
+        }
+        catch (e: Exception){
+          log.info("배고픈데 취소됐어요")
+          log.info("e = ${e.message}")
+        }
+      }
+
+      val eating = launch {
+        try{
+          delay(1000)
+          log.info("밥먹어요")
+        }
+        catch (e: Exception){
+          log.info("밥 취소되었어요 ㅠㅠ")
+          log.info("e = ${e.message}")
+        }
+      }
+      
+      hungry.cancel()
+    }
+
+    outerJob.join()
+  }
+}
+```
+
+<br/>
+
+
+
+자식 Job인 hungry 잡을 cancel 했습니다. 출력결과는 아래와 같이 자식잡인 hungry 잡을 cancel 했음에도 eating 잡은 수행되어서 "밥먹어요"라는 메시지가 나타나는 것을 확인 가능합니다.<br/>
+
+```plain
+17:11:00.147 [DefaultDispatcher-worker-3] INFO io...LoggingObject -- 배고픈데 취소됐어요
+17:11:00.157 [DefaultDispatcher-worker-3] INFO io...LoggingObject -- e = StandaloneCoroutine was cancelled
+17:11:01.141 [DefaultDispatcher-worker-3] INFO io...LoggingObject -- 밥먹어요
+
+Process finished with exit code 0
+```
+
+
+
+## 참고) CoroutineScope() 함수
+
+> 참고 : 
+>
+> - [CoroutineScope()](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-scope.html)
+> - [launch()](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/launch.html)
+
+
+
+CoroutineScope.kt 에서 제공하는 CoroutineScope() 함수는 아래와 같이 Job 을 반환하지 않습니다. <br/>
+
+따라서 cancel 은 가능하지만 Job 객체의 속성들이 포함되지 않으므로 join 은 불가능합니다.<br/>
+
+```kotlin
+fun CoroutineScope(context: CoroutineContext): CoroutineScope
+```
+
+
+
+반면 코루틴 스코프 빌더 함수인 launch() 는 Job 을 반환합니다. Job 인터페이스의 속성을 가지기 때문에 cancel(), join() 모두 가능합니다.
+
+```kotlin
+fun CoroutineScope.launch(
+    context: CoroutineContext = EmptyCoroutineContext, 
+    start: CoroutineStart = CoroutineStart.DEFAULT, 
+    block: suspend CoroutineScope.() -> Unit
+): Job
+```
+
+
+
+
+
