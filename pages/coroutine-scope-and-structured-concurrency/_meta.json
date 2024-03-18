@@ -2,5 +2,6 @@
     "intro": "Intro",
     "what-is-coroutine-scope": "CoroutineScope",
     "structured-concurrency": "Structured Concurrency",
+    "coroutine-scope-builders": "CoroutineScope 빌더 함수들",
     "coroutine": "Coroutine"
 }

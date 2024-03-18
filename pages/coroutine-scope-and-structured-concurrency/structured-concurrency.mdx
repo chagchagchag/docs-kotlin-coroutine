@@ -9,6 +9,42 @@
 예를 들면 아래와 같은 코드를 `Structured Concurrency` 라고 이야기합니다.
 
 ```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(EmptyCoroutineContext).launch {
+      // ----- (1)
+      val applePrice = async {
+        delay(1000)
+        5000
+      }
+      val bananaPrice = async {
+        delay(1000)
+        7000
+      }
+      val carrotPrice = async {
+        delay(1000)
+        3000
+      }
+
+      log.info("(1)")
+      val sum = applePrice.await() + bananaPrice.await() + carrotPrice.await()
+      // ----- (1)
+      log.info("sum = $sum")
+      log.info("(2)")
+      assert(sum == 5000 + 7000 + 3000)
+    }
+
+    job.join() // join() 하지 않으면 main 문은 자기 마음대로 끝냅니다.
+  }
+}
 ```
 
 <br/>
@@ -164,7 +200,7 @@ suspend fun cartSum1(): Int{
 
 `// ----- (2)`
 
-- 처음 async 코드에 비해 단순해졌습니다. 별도의 함수인 `cartSum()`에서 합계를 구하도록 했기 때문입니다.
+- 처음 async 코드에 비해 단순해졌습니다. 별도의 함수인 `cartSum1()`에서 합계를 구하도록 했기 때문입니다.
 - async 에 대해 일일이 await() 을 하는 시점을 알고 있을 필요도 없습니다.
 
 <br/>
@@ -195,9 +231,201 @@ Process finished with exit code 0
 
 ## e.g. launch
 
+launch 는 async 와는 다르게 값을 리턴하지 않습니다.<br/>
+
+
+
 ### 복잡한 launch 코드
 
+아래 코드는 원하는 순서대로 수행됨을 보장하지 않는 `launch{...}` 를 사용한 코드입니다.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(EmptyCoroutineContext).launch {
+      val order = launch {
+        delay(1000)
+        log.info("주문 완료")
+      }
+
+      val pay = launch {
+        delay(1000)
+        log.info("결제 완료")
+      }
+
+      val delivery_reservation = launch {
+        delay(1000)
+        log.info("배송 예약 완료")
+      }
+
+      log.info("(1)")
+      order.join()
+      pay.join()
+      delivery_reservation.join()
+      log.info("(2)")
+    }
+
+    job.join()
+  }
+}
+```
+
+
+
+위 코드의 결과는 아래와 같습니다.<br/>
+
+원했던 결과는 `주문 완료` → `결제 완료` → `배송 예약 완료` 인데, 출력결과는 `주문 완료` → `배송 예약 완료` → `결제 완료` 가 되었습니다.<br/>
+
+출력결과
+
+```plain
+12:01:33.193 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (1)
+12:01:34.187 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 주문 완료
+12:01:34.198 [DefaultDispatcher-worker-3] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 배송 예약 완료
+12:01:34.198 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 결제 완료
+12:01:34.199 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (2)
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+이번에는 아래와 같은 코드를 작성해봅니다.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(EmptyCoroutineContext).launch {
+      val order = launch {
+        delay(1000)
+        log.info("주문 완료")
+
+        val pay = launch {
+          delay(1000)
+          log.info("결제 완료")
+
+          val delivery_reservation = launch {
+            delay(1000)
+            log.info("배송 예약 완료")
+          }
+          delivery_reservation.join()
+        }
+        pay.join()
+      }
+
+      log.info("(1)")
+      order.join()
+      log.info("(2)")
+    }
+
+    job.join()
+  }
+}
+```
+
+
+
+위 코드의 결과는 아래와 같습니다. 원했던 결과인 `주문 완료` → `결제 완료` → `배송 예약 완료` 를 정상적으로 잘 만들어 냈음을 알 수 있습니다.
+
+```plain
+12:08:16.478 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (1)
+12:08:17.491 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 주문 완료
+12:08:18.496 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 결제 완료
+12:08:19.511 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 배송 예약 완료
+12:08:19.513 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (2)
+
+Process finished with exit code 0
+```
+
+<br/>
+
+이런 코드를 어떻게 단순화할 수 있을 까요?<br/>
+
+
+
 ### 원하는 특정 launch 코드 들의 연산을 coroutineScope 로 감싸기
+
+첫번째 방법은 순서대로 수행되어야 하는 각각의 `launch{}` 코드 들을 `coroutineScope{...}` 빌더 함수 내에서 실행하는 방식입니다.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(EmptyCoroutineContext).launch {
+      log.info("(1)")
+      coroutineScope {
+        launch {
+          delay(1000)
+          log.info("주문 완료")
+        }
+
+        launch {
+          delay(1000)
+          log.info("결제 완료")
+        }
+
+        launch {
+          delay(1000)
+          log.info("배송 예약 완료")
+        }
+      }
+      log.info("(2)")
+    }
+    job.join()
+  }
+}
+```
+
+<br/>
+
+출력결과는 원했던 결과인 `주문 완료` → `결제 완료` → `배송 예약 완료` 를 정상적으로 잘 만들어 냈음을 알 수 있습니다.
+
+coroutineScope 내에서 실행되는 자식 스코프 들은 coroutineScope 빌더 함수 내의 부모스코프가 각 자식 스코프들의 라이프사이클을 관리하고 확인하면서 각각의 자식 coroutine 들이 동기적으로 동작되게끔 관리합니다. 즉, coroutineScope 빌더 함수 내에서는 여러개의 코루틴 스코프가 있더라도 각각의 코루틴 스코프는 동기연산을 하듯 순서대로 동작합니다.<br/>
+
+
+
+```plain
+12:15:59.359 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (1)
+12:16:00.381 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 주문 완료
+12:16:00.381 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 결제 완료
+12:16:00.395 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 배송 예약 완료
+12:16:00.395 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (2)
+
+Process finished with exit code 0
+```
+
+<br/>
 
 
 
