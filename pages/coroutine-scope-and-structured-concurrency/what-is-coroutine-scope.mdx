@@ -89,8 +89,8 @@ fun main(){
 출력결과
 
 ```plain
-08:20:37.108 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 방금 생성한 코루틴 스코프 = CoroutineScope(coroutineContext=JobImpl{Active}@6615435c)
-08:20:37.113 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 코루틴 스코프 클래스 = ContextScope
+08:20:37.108 [main] INFO io...helper.LoggingObject -- 방금 생성한 코루틴 스코프 = CoroutineScope(coroutineContext=JobImpl{Active}@6615435c)
+08:20:37.113 [main] INFO io...helper.LoggingObject -- 코루틴 스코프 클래스 = ContextScope
 
 Process finished with exit code 0
 ```
@@ -152,12 +152,12 @@ launch 를 통해 CoroutineScope 를 만들고 이 CoroutineScope 가 중지했�
 출력결과
 
 ```plain
-08:42:26.917 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- scope 에 생성된 Job = JobImpl{Active}@6f1fba17
-08:42:26.956 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- launchedJob 을 시작하겠습니다.
-08:42:27.973 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- this.coroutineContext = [StandaloneCoroutine{Active}@41f230d0, Dispatchers.Default]
-08:42:27.973 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- class name = StandaloneCoroutine
-08:42:27.973 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 현재 Job 의 부모(parent) = JobImpl{Active}@6f1fba17
-08:42:27.974 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- launchedJob 을 종료합니다.
+08:42:26.917 [main] INFO io...helper.LoggingObject -- scope 에 생성된 Job = JobImpl{Active}@6f1fba17
+08:42:26.956 [main] INFO io...helper.LoggingObject -- launchedJob 을 시작하겠습니다.
+08:42:27.973 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- this.coroutineContext = [StandaloneCoroutine{Active}@41f230d0, Dispatchers.Default]
+08:42:27.973 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- class name = StandaloneCoroutine
+08:42:27.973 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- 현재 Job 의 부모(parent) = JobImpl{Active}@6f1fba17
+08:42:27.974 [main] INFO io...helper.LoggingObject -- launchedJob 을 종료합니다.
 ```
 
 <br/>
@@ -166,7 +166,40 @@ launch 를 통해 CoroutineScope 를 만들고 이 CoroutineScope 가 중지했�
 
 ## async 
 
-`async{...}` 는 CoroutineScope 를 반환합니다. async 가 반환하는 코루틴 스코프를 이용하면 await() 함수를 사용할 수 있습니다.
+> 참고 : 
+>
+> - [CoroutineScope.async()](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-scope/)
+> - [Deferred](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-deferred/)
+> - [AbstractCoroutine](https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/common/src/Builders.common.kt)
+
+<br/>
+
+`async{...}` 는 [Deferred](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-deferred/) 객체를 반환합니다. 이 Deferred 객체는 Job interface 를 extends 하는 interface 입니다. 그리고 `async{...}` 빌더의 내부를 살펴보면 아래와 같이 LazyDeferredCoroutine 또는 DeferredCoroutine 이라는 구체 타입의 인스턴스를 리턴합니다.<br/>
+
+**[Builders.common.kt](https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/common/src/Builders.common.kt)**
+
+```kotlin
+public fun <T> CoroutineScope.async(
+    context: CoroutineContext = EmptyCoroutineContext,
+    start: CoroutineStart = CoroutineStart.DEFAULT,
+    block: suspend CoroutineScope.() -> T
+): Deferred<T> {
+    val newContext = newCoroutineContext(context)
+    val coroutine = if (start.isLazy)
+        LazyDeferredCoroutine(newContext, block) else
+        DeferredCoroutine<T>(newContext, active = true)
+    coroutine.start(start, coroutine, block)
+    return coroutine
+}
+```
+
+ 이 중 DeferredCoroutine 의 상속관계를 찾아서 위로 올라가면 차례로 `AbstractCoroutine` 클래스, CoroutineScope 클래스를 만나게 됩니다.<br/>
+
+즉, `async{...}` 가 반환하는 `Deferred` 객체는 `CoroutineScope` 로 일반화해서 처리 가능하다는 의미입니다.<br/>
+
+
+
+아래는 `launch{...}` 라는 코루틴 빌더의 예제입니다.
 
 ```kotlin
 package io.chagchagchag.demo.kotlin_coroutine.coroutine_scope
@@ -202,26 +235,28 @@ fun main(){
 }
 ```
 
-
-
 마치 javascript 의 async, await 을 사용하는 것과 비슷한 코드입니다.<br/>
 
 출력결과를 확인해보면 async 가 생성한 코루틴 컨텍스트는 DeferredCoroutine 입니다. 자신을 생성한 부모 스코프를 참조할 수 있는지 확인하기 위해 `this.coroutineContext[Job]?.parent` 을 출력해보면 정확하게 출력이 됩니다. <br/>
 
 코루틴 컨텍스트는 자신의 부모스코프가 무엇인지 알수 있다는 사실을 알 수 있습니다. 이것은 자신이 호출된 바로 전 단계의 스코프를 참조할 수 있다는 의미이기 때문에, 조금 복잡한 호출구조의 비동기 프로그래밍을 할 때 중요한 개념이 됩니다.<br/>
 
+중요한 점은 async(), await() 을 하는 동안 프로그램이 블로킹 상태가 아니라는 점입니다. await() 을 하는 동안 코틀린은 내부적으로 다른 코루틴을 조율하면서 실행시키고 있고 async 내부의 작업이 끝나는 순간 await() 을 하는 작업을 완료하게 됩니다.<br/>
+
+<br/>
+
 
 
 출력결과
 
 ```plain
-09:03:48.916 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 현재 Job = JobImpl{Active}@6f1fba17
-09:03:48.925 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 시작
-09:03:49.971 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 현재 코루틴 컨텍스트 = [DeferredCoroutine{Active}@1b2786cb, Dispatchers.Default]
-09:03:49.971 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 현재 코루틴 컨텍스트의 클래스명 = DeferredCoroutine
-09:03:49.971 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 현재 Job 의 부모 = JobImpl{Active}@6f1fba17
-09:03:49.974 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 코루틴이 반환한 값 = 25000
-09:03:49.975 [main] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 끝
+09:03:48.916 [main] INFO io...helper.LoggingObject -- 현재 Job = JobImpl{Active}@6f1fba17
+09:03:48.925 [main] INFO io...helper.LoggingObject -- 시작
+09:03:49.971 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- 현재 코루틴 컨텍스트 = [DeferredCoroutine{Active}@1b2786cb, Dispatchers.Default]
+09:03:49.971 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- 현재 코루틴 컨텍스트의 클래스명 = DeferredCoroutine
+09:03:49.971 [DefaultDispatcher-worker-1] INFO io...helper.LoggingObject -- 현재 Job 의 부모 = JobImpl{Active}@6f1fba17
+09:03:49.974 [main] INFO io...helper.LoggingObject -- 코루틴이 반환한 값 = 25000
+09:03:49.975 [main] INFO io...helper.LoggingObject -- 끝
 
 Process finished with exit code 0
 ```
