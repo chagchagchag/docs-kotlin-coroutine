@@ -2,4 +2,304 @@
 
 
 
+## async 코루틴 스코프 빌더의 exception handling
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.exception_handler
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val deferred = CoroutineScope(Dispatchers.IO).async {
+      throw IllegalArgumentException("퇴근 취소됨...")
+      "퇴근해요"
+    }
+
+    try{
+      deferred.await()
+    } catch (e: Exception){
+      log.info("catch >>> 예외 메시지 : ${e.message}")
+    }
+  }
+}
+```
+
+
+
+출력결과를 확인해보면 async 의 경우 try catch 로 deferred 의 wait() 연산을 대기할 때 코루틴에서 throw 한 예외를 catch 할 수 있다는 사실을 확인할 수 있습니다.<br/>
+
+출력결과
+
+```plain 
+18:22:07.224 [main] INFO io...helper.LoggingObject -- catch >>> 예외 메시지 : 퇴근 취소됨...
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+### CoroutineExceptionHandler 사용 불가
+
+async 코루틴 스코프 빌더는 바로 뒤에서 정리할 CoroutineExceptionHandler 를 사용하지 못합니다. Deferred 객체로 Exception 을 전달해주는 구조여서 사용이 불가능합니다.<br/>
+
+<br/>
+
+
+
+## launch 코루틴 스코프 빌더의 exception handling
+
+### e.g. launch 는 코루틴 스코프 외부에서 catch 불가
+
+**Launch_ExceptionHandling1.kt**
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.exception_handler
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(Dispatchers.IO).launch {
+      launch {
+        launch {
+          throw IllegalStateException("퇴근 최소됨...")
+          log.info("퇴근해요")
+        }
+      }
+    }
+
+    try{
+      job.join()
+    } catch (e: Exception){
+      log.info("catch >>> 예외 메시지 : ${e.message}")
+    }
+  }
+}
+```
+
+<br/>
+
+출력결과를 확인해보면 launch 의 경우 try catch 로 job 의 join() 연산을 수행할 때 코루틴에서 throw 한 예외를 catch 할 수 있는지를 확인해보면, 예외를 catch 할 수 없다는 사실을 파악이 가능합니다.<br/>
+
+출력결과
+
+```plain
+Exception in thread "DefaultDispatcher-worker-2" java.lang.IllegalStateException: 퇴근 최소됨...
+	at io.chagchagchag.demo.kotlin_coroutine.exception_handler.Launch_ExceptionHandlingKt$main$1$job$1$1$1.invokeSuspend(Launch_ExceptionHandling.kt:13)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:108)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:115)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:103)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:584)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:793)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:697)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:684)
+	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [StandaloneCoroutine{Cancelling}@77f0984, Dispatchers.IO]
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+### e.g. launch 스코프 외부를 모두 try catch 로 감싼다면?
+
+위와 같이 외부에서 launch 코루틴 스코프가 catch 되지 않는 상황에서 가장 쉽게 해볼 수 있는 생각은 launch 스코프 외부까지 모두 try catch 로 감싸보는 것입니다.<br/>
+
+**Launch_ExceptionHandling2.kt**<br/>
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.exception_handler
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(Dispatchers.IO).launch {
+      try{
+        launch {
+          launch {
+            throw IllegalStateException("퇴근 최소됨...")
+            log.info("퇴근해요")
+          }
+        }
+      } catch (e: Exception){
+        log.error("catch >>> 예외 메시지 = ${e.message}")
+      }
+    }
+
+    job.join()
+  }
+}
+```
+
+
+
+출력결과를 확인해보면 역시 이번에도 launch 코루틴 스코프가 던지는 예외를 catch 하지 못했음을 확인 가능합니다.
+
+```plain
+Exception in thread "DefaultDispatcher-worker-2" java.lang.IllegalStateException: 퇴근 최소됨...
+	at io.chagchagchag.demo.kotlin_coroutine.exception_handler.Launch_ExceptionHandling2Kt$main$1$job$1$1$1.invokeSuspend(Launch_ExceptionHandling2.kt:17)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:108)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:115)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:103)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:584)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:793)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:697)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:684)
+	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [StandaloneCoroutine{Cancelling}@6097f380, Dispatchers.IO]
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+## launch 코루틴 빌더의 ExceptionHandler : CoroutineExceptionHandler 
+
+> 참고 : [CoroutineExceptionHandler](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-exception-handler/)
+
+CoroutineExceptionHandler 는 launch 코루틴 스코프 빌더에서만 사용할 수 있는 Handler 입니다. async 코루틴 스코프 빌더는 Deferred 로 exception 을 전달하기 때문에 CoroutineExceptionHandler 를 사용불가합니다.<br/>
+
+### e.g. 1
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.exception_handler
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val handler = CoroutineExceptionHandler{ _, e ->
+      log.error("ErrorHandler >>> 예외 메시지 : ${e.message}")
+    }
+
+    val job = CoroutineScope(Dispatchers.IO + handler).launch {
+      launch {
+        launch {
+          throw IllegalStateException("퇴근 취소 ... ")
+          log.info("퇴근합니다.")
+        }
+      }
+    }
+
+    job.join()
+  }
+
+}
+```
+
+
+
+출력결과를 보면 launch 코루틴 스코프 빌더에서 CoroutineExceptionHandler 가 올바르게 동작했음을 확인 가능합니다.<br/>
+
+
+
+출력결과
+
+```plain
+19:01:33.414 [DefaultDispatcher-worker-1] ERROR io...helper.LoggingObject -- ErrorHandler >>> 예외 메시지 : 퇴근 취소 ... 
+
+Process finished with exit code 0
+```
+
+
+
+### e.g. 2 - 부모 코루틴이 아닌 내부의 코루틴에 handler 를 제공할 경우 예외 처리 불가
+
+부모 코루틴이 아닌 내부의 코루틴에 handler 를 적용하고, 부모 코루틴에는 아무런 handler 가 제공되지 않는다면, 예외를 catch 하지 못하게 됩니다.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.exception_handler
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val handler = CoroutineExceptionHandler{ _, e ->
+      log.error("ErrorHandler >>> 예외 메시지 : ${e.message}")
+    }
+
+    val job = CoroutineScope(Dispatchers.IO).launch {
+      launch (Dispatchers.IO + handler){
+        launch {
+          throw IllegalStateException("퇴근 취소 ... ")
+          log.info("퇴근합니다.")
+        }
+      }
+    }
+
+    job.join()
+  }
+}
+```
+
+<br/>
+
+
+
+출력결과를 보면 예외를 catch 못했음을 확인 가능합니다.<br/>
+
+
+
+출력결과
+
+```plain
+Exception in thread "DefaultDispatcher-worker-1" java.lang.IllegalStateException: 퇴근 취소 ... 
+	at io.chagchagchag.demo.kotlin_coroutine.exception_handler.Launch_ExceptionHandling4Kt$main$1$job$1$1$1.invokeSuspend(Launch_ExceptionHandling4.kt:18)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:108)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:115)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:103)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:584)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:793)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:697)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:684)
+	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [StandaloneCoroutine{Cancelling}@5d35c45c, Dispatchers.IO]
+Disconnected from the target VM, address: '127.0.0.1:5566', transport: 'socket'
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+## runBlocking 코루틴 스코프 빌더의 exception handling
+
+
+
+
+
+
+
+
 
