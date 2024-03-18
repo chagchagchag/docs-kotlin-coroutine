@@ -1,5 +1,6 @@
 {
     "intro": "Intro",
     "what-is-coroutine-scope": "CoroutineScope",
+    "structured-concurrency": "Structured Concurrency",
     "coroutine": "Coroutine"
 }
