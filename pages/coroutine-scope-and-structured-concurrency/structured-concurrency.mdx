@@ -1,2 +1,205 @@
 ## Structured Concurrency
 
+
+
+## Structured Concurrency 란?
+
+`lanch{...}`, `async{...}` 등과 같은 코루틴 빌더를 사용할 때 이 것을 중첩되어서 사용하는 경우가 있을 수 있습니다. 이렇게 중첩해서 `lanch{...}`, `async{...}` 을 사용하는 것을 보통 `Structured Concurrency` 라고 합니다. <br/>
+
+예를 들면 아래와 같은 코드를 `Structured Concurrency` 라고 이야기합니다.
+
+```kotlin
+```
+
+<br/>
+
+
+
+그런데 이렇게 중첩된 CoroutineScope 들을 특정 순서에 맞춰서 호출되게끔 해야 하는 경우가 있습니다. 일반적으로 간단한 코드의 경우 `launch{}` 를 사용할 경우에는 join() 함수를 사용해서 동기코드처럼 작성하고 `async{}` 를 사용할 경우에는 await() 함수를 사용해서 동기코드 처럼 사용할 수 있습니다.<br/>
+
+그런데 join(), await() 같은 함수를 직접 작성해서 수행하다보면 가독성이 떨어지기도 하고 코드가 길어지면 실수가 생기기도 하고, for 문 내에서 실행할 경우 동기적으로 실행이 되지 않을 수 있습니다.<br/>
+
+이 경우 일반적으로 아래와 같은 방식으로 해결할 수 있습니다.
+
+- 부모역할의 비동기 스코프 내에 job1, job2, job3, ... 의 작업을 수행하게끔하고 부모 비동기 스코프를 밖에서 join()
+- `coroutineScope{...}` 또는 `withContext(context){...}` 내에서 job1, job2, job3, ... 의 작업을 수행하도록 코드를 작성
+
+<br/>
+
+
+
+## e.g. async
+
+### 복잡한 async 코드
+
+아래와 같이 사용하는 async 코드가 있다고 하겠습니다.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(EmptyCoroutineContext).launch {
+      // ----- (1)
+      val applePrice = async {
+        delay(1000)
+        5000
+      }
+      val bananaPrice = async {
+        delay(1000)
+        7000
+      }
+      val carrotPrice = async {
+        delay(1000)
+        3000
+      }
+
+      log.info("(1)")
+      val sum = applePrice.await() + bananaPrice.await() + carrotPrice.await()
+      // ----- (1)
+      log.info("sum = $sum")
+      log.info("(2)")
+      assert(sum == 5000 + 7000 + 3000)
+    }
+
+    job.join() // join() 하지 않으면 main 문은 자기 마음대로 끝냅니다.
+  }
+}
+```
+
+<br/>
+
+
+
+장바구니에 사과, 바나나, 당근이 담겨있고 이것의 가격을 하나씩 모두 호출해 온 후 합산을 해서 현재 장바구니의 주문가격을 계산하는 코드입니다.<br/>
+
+위의 코드에서 `apple.await()`, `bananaPrice.await()`, `carrotPrice.await()` 을 이용해서 값을 가져와서 합산을 했고, 출력결과를 보면 1초만에 수행이 완료되었습니다. 만약 블로킹 방식의 동기연산으로 수행했으면 3초 걸렸을 작업인데, 각각의 작업을 각각의 코루틴에서 수행되게끔 `async{...}` 에서 수행했기 때문에 1초만에 수행이 되었습니다.
+
+<br/>
+
+
+
+출력결과
+
+```plain
+11:19:07.202 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (1)
+11:19:08.208 [DefaultDispatcher-worker-3] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- sum = 15000
+11:19:08.209 [DefaultDispatcher-worker-3] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (2)
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+이 방식의 문제점은 코드가 점점 복잡해진다는 점입니다.<br/>
+
+`// ----- (1)` 안에 위치한 코드의 이전이나 이후에 코드를 수행해야 할 경우에는 `// ----- (1)` 의 위치의 처음과 끝이 어디인지 알아야하고 `// ----- (1)` 내부의 코드를 다른 함수 등으로 분리해내기 쉽지 않기에 유지보수가 어려워지고, 확장성이 떨어진다는 단점이 있습니다.<br/>
+
+
+
+### 원하는 특정 async 코드들의 연산은 coroutineScope() 로 감싸기
+
+이번에는 위의 코드들을 아래와 같이 작성해봅니다.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+
+  // ----- (2)
+  runBlocking {
+    val job = CoroutineScope(EmptyCoroutineContext).launch {
+      val cartSum = cartSum1()
+      log.info("(1)")
+      log.info("cartSum = $cartSum")
+      log.info("(2)")
+      assert(cartSum == 5000 + 7000 + 3000)
+    }
+
+    job.join() // join() 하지 않으면 main 문은 자기 마음대로 끝냅니다.
+  }
+}
+
+// ----- (1)
+suspend fun cartSum1(): Int{
+  return coroutineScope {
+    val applePrice = async {
+      delay(1000)
+      5000
+    }
+    val bananaPrice = async {
+      delay(1000)
+      7000
+    }
+    val carrotPrice = async {
+      delay(1000)
+      3000
+    }
+
+    applePrice.await() + bananaPrice.await() + carrotPrice.await()
+  }
+}
+```
+
+
+
+`// ----- (1)`
+
+- 사과, 바나나, 당근 가격을 구해오는 `async{...}` 구문들을 `coroutineScope{...}` 빌더함수가 생성하는 코루틴 스코프에서 실행하게끔 했습니다. 그리고 반환 값은 `applePrice.await() + bananaPrice.await() + carrotPrice.await()` 으로 지정해줬습니다.
+
+<br/>
+
+`// ----- (2)`
+
+- 처음 async 코드에 비해 단순해졌습니다. 별도의 함수인 `cartSum()`에서 합계를 구하도록 했기 때문입니다.
+- async 에 대해 일일이 await() 을 하는 시점을 알고 있을 필요도 없습니다.
+
+<br/>
+
+
+
+출력결과 역시 원하는 값인 15000이 나왔습니다. 그리고 원하는 대로 1초 내에 연산이 이뤄졌습니다. 만약 모든 작업을 블로킹 기반으로 수행했다면 3초가 걸렸을 것입니다.<br/>
+
+이렇게 하는 것이 가능한 이유는 `coroutineScope{...}` 빌더는 동기식 연산을 지원하기 때문입니다. <br/>
+
+`coroutineScope{...}` 코드를 보면 블로킹 연산을 수행하는 것이라고 착각할 수 있겠지만, 블로킹연산이 아닌 논블로킹 기반 동기연산을 지원합니다. 코틀린 엔진이`coroutineScope{...}`의 수행이 끝날 때 까지 뒷단에서는 다른 코루틴을 수행하게 됩니다.<br/>
+
+
+
+출력결과 
+
+```plain
+11:32:50.036 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (1)
+11:32:50.044 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- cartSum = 15000
+11:32:50.044 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (2)
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+## e.g. launch
+
+### 복잡한 launch 코드
+
+### 원하는 특정 launch 코드 들의 연산을 coroutineScope 로 감싸기
+
+
+
+
+
