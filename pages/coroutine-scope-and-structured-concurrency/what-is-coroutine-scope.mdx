@@ -1,8 +1,10 @@
 ## CoroutineScope
 
-CoroutineScope 는 Coroutine 의 Scope 를 정의하는 용도의 타입이며 interface 로 선언되어 있습니다.
+CoroutineScope 는 Coroutine 의 Scope 를 정의하는 용도의 타입이며 interface 로 선언되어 있습니다.<br/>
 
-structured concurrency 라고 해서 중첩된 Coroutine Scope 를 가질 수도 있는데 여기에 대해서는 예제를 통해 정리해봅니다. CoroutineScope 를 만들때에는 보통 Coroutine Builder 라고 불리는 함수를 사용하는데 대부분 CoroutineScope interface 에 확장함수로 추가된 함수이며 `withContext()`, `launch()`, `async()` 등이 있습니다. `withContext()`, `launch()`, `async()` 확장함수의 정의는 [Builders.common.kt](https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/common/src/Builders.common.kt) 에 정의되어 있습니다.<br/>
+structured concurrency 라고 해서 중첩된 Coroutine Scope 를 가질 수도 있는데 여기에 대해서는 이 문서가 아닌 별도의 문서에서 정리하겠습니다.<br/>
+
+CoroutineScope 를 만들때에는 보통 Coroutine Builder 라고 불리는 함수를 사용하는데 대부분 CoroutineScope interface 에 확장함수로 추가된 함수이며 `withContext()`, `launch()`, `async()` 등이 있습니다. `withContext()`, `launch()`, `async()` 확장함수의 정의는 [Builders.common.kt](https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/common/src/Builders.common.kt) 에 정의되어 있습니다.<br/>
 
 <br/>
 
