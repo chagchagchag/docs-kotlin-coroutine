@@ -1,6 +1,4 @@
-## Exception Handler
-
-
+## ExceptionHandler
 
 ## async 코루틴 스코프 빌더의 exception handling
 
@@ -52,6 +50,102 @@ Process finished with exit code 0
 async 코루틴 스코프 빌더는 바로 뒤에서 정리할 CoroutineExceptionHandler 를 사용하지 못합니다. Deferred 객체로 Exception 을 전달해주는 구조여서 사용이 불가능합니다.<br/>
 
 <br/>
+
+
+
+## runBlocking 코루틴 스코프 빌더의 exception handling
+
+runBlocking 코루틴 스코프 빌더는 runBlocking 코루틴 스코프 외부에서 try catch 를 사용해도 exception handling 이 가능합니다. 다만 <br/>
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.exception_handler
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.runBlocking
+
+fun main(){
+  val log = logger()
+
+  try{
+    runBlocking {
+      throw IllegalStateException("퇴근 실패")
+      log.info("퇴근합니다.")
+    }
+  } catch (e: Exception){
+    log.error("에러 메시지 : ${e.message}")
+  }
+}
+```
+
+<br/>
+
+출력결과를 보면 throw 한 Exception 이 올바르게 catch 되었음을 확인 가능합니다.
+
+```plain
+20:15:57.328 [main] ERROR io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- 에러 메시지 : 퇴근 실패
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+### CoroutineExceptionHandler 사용 불가
+
+runBlocking 코루틴 스코프 역시 CoroutineExceptionHandler 를 사용해서 에러를 Catch 하는 것은 불가능합니다. 
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.exception_handler
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.runBlocking
+
+fun main(){
+  val log = logger()
+
+  val handler = CoroutineExceptionHandler{_, e ->
+    log.error("catched >>> 에러 메시지 : ${e.message}")
+  }
+
+  runBlocking {
+    throw IllegalStateException("퇴근 실패")
+    log.info("퇴근했어요.")
+  }
+}
+```
+
+<br/>
+
+
+
+출력결과를 보면 CoroutineExceptionHandler 를 사용할 때는 Exception 을 올바르게 처리하지 못한다는 것을 알 수 있습니다.<br/>
+
+<br/>
+
+
+
+출력결과
+
+```plain
+Exception in thread "main" java.lang.IllegalStateException: 퇴근 실패
+	at io.chagchagchag.demo.kotlin_coroutine.exception_handler.RunBlocking_ExceptionHandling2Kt$main$1.invokeSuspend(RunBlocking_ExceptionHandling2.kt:15)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:108)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:280)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:85)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:59)
+	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:38)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(Unknown Source)
+	at io.chagchagchag.demo.kotlin_coroutine.exception_handler.RunBlocking_ExceptionHandling2Kt.main(RunBlocking_ExceptionHandling2.kt:14)
+	at io.chagchagchag.demo.kotlin_coroutine.exception_handler.RunBlocking_ExceptionHandling2Kt.main(RunBlocking_ExceptionHandling2.kt)
+
+Process finished with exit code 1
+```
+
+
 
 
 
@@ -292,8 +386,6 @@ Process finished with exit code 0
 <br/>
 
 
-
-## runBlocking 코루틴 스코프 빌더의 exception handling
 
 
 
