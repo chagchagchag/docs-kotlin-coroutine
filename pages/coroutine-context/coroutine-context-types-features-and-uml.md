@@ -585,7 +585,7 @@ internal class CombinedContext(
 
 #### Job
 
-JobSupport.kt 파일, Superviser.kt 파일에 주요 구현체가 있으며, JobSupport.kt 내에는 JobSupport 클래스 외에도 여러 클래스들이 존재합니다. 하지만, JobSupport 는 Deprecated 될 예정이기에 CompletedJob interface 내에서 다른 interface 를 확장(상속) 받는 방식으로 이 문제를 해결할 것으로 보입니다.
+JobSupport.kt 파일, Supervisor.kt 파일에 주요 구현체가 있으며, JobSupport.kt 내에는 JobSupport 클래스 외에도 여러 클래스들이 존재합니다. 하지만, JobSupport 는 Deprecated 될 예정이기에 CompletedJob interface 내에서 다른 interface 를 확장(상속) 받는 방식으로 이 문제를 해결할 것으로 보입니다.
 
 복잡하게 정리했지만, 결국은 Job 역시도 CoroutineContext.Element 타입이라고 이해하면 된다. 이렇게 이해하면 편합니다.
 

@@ -429,6 +429,8 @@ fun main (){
 
 ## ExecutorCoroutineDispatcher
 
+> 참고 : [ExecutorCoroutineDispatcher](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-executor-coroutine-dispatcher/)
+
 Dispatchers.Default 는 너무 CPU Bound 작업에 특화되어 있고, Dispatchers.IO 는 너무 스레드 자원을 크게 사용한다는 느낌이 들 때가 있습니다. 스레드 풀을 조금 더 경량화 해서 잡을 수도 있을 것 같고, 더 효율적으로 스레드를 사용하도록 스케쥴링 기반으로 전환할 수도 있습니다.<br/>
 
 이런 경우 `ExecutorCoroutineDispatcher` 를 사용해서 원하는 커스텀 설정이 적용된 CoroutineDispatcher를 만들어낼 수 있습니다.<br/>
@@ -439,10 +441,157 @@ ExecutorCoroutineDispatcher 를 사용하면 특정 크기의 스레드 풀을 �
 
 
 
+### newFixedThreadPoolContext
+
+> 참고 : [newFixedThreadPoolContext](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/new-fixed-thread-pool-context.html)
+
+
+
 #### e.g.
 
 ```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.coroutine_dispatcher
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.newFixedThreadPoolContext
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    log.info("START")
+    val fixedDispatcher = newFixedThreadPoolContext(1, "messageSender")
+
+    withContext(fixedDispatcher){
+      log.info("스레드 : ${Thread.currentThread().name}, 디스패처 : $fixedDispatcher")
+      fixedDispatcher.close()
+      log.info("END")
+    }
+  }
+
+}
 ```
 
 
+
+출력결과
+
+```plain
+14:42:55.186 [main] INFO io...helper.LoggingObject -- START
+14:42:55.240 [messageSender] INFO io...helper.LoggingObject -- 스레드 : messageSender, 디스패처 : java.util.concurrent.ScheduledThreadPoolExecutor@6ddf90b0[Running, pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+14:42:55.241 [messageSender] INFO io...helper.LoggingObject -- END
+
+Process finished with exit code 0
+```
+
+
+
+
+
+### newSingleThreadContext
+
+> 참고 : [newSingleThreadContext](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/new-single-thread-context.html)
+
+
+
+#### e.g.
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.coroutine_dispatcher
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.newSingleThreadContext
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+
+fun main() {
+  val log = logger()
+
+  runBlocking {
+    log.info("START")
+    val singleDispatcher = newSingleThreadContext("sumCartDispatcher")
+
+    withContext(singleDispatcher) {
+      log.info("스레드 : ${Thread.currentThread().name}, 디스패처 : $singleDispatcher")
+      singleDispatcher.close()
+      log.info("END")
+    }
+  }
+}
+
+```
+
+
+
+출력결과
+
+```plain
+14:45:04.233 [main] INFO io...helper.LoggingObject -- START
+14:45:04.282 [sumCartDispatcher] INFO io...helper.LoggingObject -- 스레드 : sumCartDispatcher, 디스패처 : java.util.concurrent.ScheduledThreadPoolExecutor@5a8e6209[Running, pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+14:45:04.283 [sumCartDispatcher] INFO io...helper.LoggingObject -- END
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+### e.g. fixed, single 
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.coroutine_dispatcher
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val fixed = newFixedThreadPoolContext(2,"messageSenderDispatcher")
+    val singleThreadDispatcher = newSingleThreadContext("sumCartDispatcher")
+
+    val job = launch (singleThreadDispatcher){
+      log.info("스레드 1 : ${Thread.currentThread().name}")
+
+      withContext(fixed){
+        log.info("스레드 2 : ${Thread.currentThread().name}")
+
+        withContext(Dispatchers.IO){
+          log.info("스레드 3 : ${Thread.currentThread().name}")
+
+          withContext(singleThreadDispatcher){
+            log.info("스레드 4 : ${Thread.currentThread().name}")
+          }
+        }
+      }
+    }
+
+    job.join()
+    fixed.close()
+    singleThreadDispatcher.close()
+  }
+}
+```
+
+<br/>
+
+확인해보면 모두 독자적으로 제공받은 Dispatcher 를 그대로 사용하고 있음을 확인 가능합니다.<br/>
+
+
+
+출력결과
+
+```plain
+14:34:37.155 [sumCartDispatcher] INFO io...helper.LoggingObject -- 스레드 1 : sumCartDispatcher
+14:34:37.163 [messageSenderDispatcher-1] INFO io...helper.LoggingObject -- 스레드 2 : messageSenderDispatcher-1
+14:34:37.176 [DefaultDispatcher-worker-2] INFO io...helper.LoggingObject -- 스레드 3 : DefaultDispatcher-worker-2
+14:34:37.178 [sumCartDispatcher] INFO io...helper.LoggingObject -- 스레드 4 : sumCartDispatcher
+
+Process finished with exit code 0
+```
 
