@@ -5,6 +5,7 @@
   "coroutine-context": "CoroutineContext",
   "coroutine-dispatcher": "CoroutineDispatcher",
   "coroutine-scope-and-structured-concurrency": "CoroutineScope, Structured Concurrency",
+  "error-handler-and-job-cancelling": "ErrorHandler, Job Cancel",
   "flow": "Flow",
   "channel": "Channel",
   "kotlin-basic": "코틀린 기초",
