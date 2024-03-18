@@ -2,5 +2,85 @@
 
 
 
+## CoroutineScope 빌더 함수들의 종류
 
+kotlin-coroutine-core 에서 제공하는 CoroutineScope 를 생성하는 함수들은 아래와 같습니다. `CoroutineScope.kt` 파일 내에 `CoroutineScope` 인터페이스의 확장함수로 추가되어있기도 하고, `Buidlers.common.kt` 내에 함수로 선언되어 있는 경우도 있습니다. 이 함수들을 주로 `코루틴 빌더` 라고 부르기도 합니다.
+
+- `withContext` : 코루틴 컨텍스트를 변경하는 함수입니다. 다른 스레드에서 코드를 실행하거나, 특정 디스패처에 작업을 보내는 것이 가능합니다.
+- `delay` : 일정 시간 동안 코루틴을 일시 중단하는 함수입니다. 주로 테스트나 간단한 딜레이를 구현할 때 사용됩니다.
+- `async`: 비동기 작업의 결과를 반환하는 코루틴을 생성합니다. 생성된 코루틴은 `Deferred` 객체를 반환하며, 이를 통해 결과를 가져올 수 있습니다.
+- `await`: Deferred 객체의 결과를 기다리는 함수로, `async` 함수로 생성된 Deferred 객체의 결과를 가져올 때 사용됩니다.
+- `launch`: 백그라운드에서 비동기적으로 새로운 코루틴을 실행하는 함수로, 반환 값이 없는 Fire-and-forget 스타일의 코루틴을 생성합니다.
+- `runBlocking`: 새로운 블록 내에서 코루틴을 실행하는 함수로, 주로 메인 함수나 테스트 코드에서 사용되며, 코루틴을 기다리는 동안 블로킹을 유지합니다.
+- `coroutineScope`: 지정된 블록 내에서 새로운 코루틴 스코프를 생성하는 함수로, 지정된 블록 내의 코루틴이 완료될 때까지 대기합니다.
+- `select`: 여러 개의 중단 가능한 조건을 동시에 처리할 수 있는 함수로, 먼저 발생하는 이벤트를 처리하고 나머지는 무시합니다.
+- `supervisorScope`: 자식 코루틴이 실패하더라도 부모 코루틴이 중단되지 않도록 하는 슈퍼바이저 스코프를 생성하는 함수로, 자식 코루틴의 실패를 격리합니다.
+
+<br/>
+
+
+
+이 함수들은 보통 마지막 인자를 람다식으로 받는데, 가장 마지막 인자가 람다식 일 경우 아래와 같이 축약해서 쓰는 것이 가능합니다.
+
+```kotlin
+launch{
+    // ...
+}
+```
+
+우리가 흔히 보는 launch 구문, withContext 구문, async 구문 등은 모두 마지막 인자가 람다식입니다.
+
+<br/>
+
+
+
+## CoroutineScope 빌더 함수들
+
+### launch
+
+> 참고 : [CoroutineScope.launch](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/launch.html)
+
+launch 의 마지막 인자인 람다는 Unit 을 반환하기에 launch 내에서 값을 반환할 필요가 없습니다.<br/>
+
+그리고 `launch {...}` 코루틴 빌더는 `Job` 을 리턴합니다.<br/>
+
+```kotlin
+fun CoroutineScope.launch(
+    context: CoroutineContext = EmptyCoroutineContext, 
+    start: CoroutineStart = CoroutineStart.DEFAULT, 
+    block: suspend CoroutineScope.() -> Unit
+): Job
+```
+
+<br/>
+
+
+
+### async
+
+> 참고 : [CoroutineScope.async](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/async.html)
+
+async 의 마지막 인자인 람다는 `T` 를 리턴합니다. 따라서 async 내에서 값을 반환해야 합니다. 반환값이 필요한 경우에 async 를 사용하면 됩니다.
+
+```kotlin
+fun <T> CoroutineScope.async(
+    context: CoroutineContext = EmptyCoroutineContext, 
+    start: CoroutineStart = CoroutineStart.DEFAULT, 
+    block: suspend CoroutineScope.() -> T
+): Deferred<T>
+```
+
+<br/>
+
+
+
+### withContext
+
+> 참고 : [withContext](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-context.html)
+
+
+
+```kotlin
+suspend fun <T> withContext(context: CoroutineContext, block: suspend CoroutineScope.() -> T): T
+```
 

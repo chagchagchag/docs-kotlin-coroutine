@@ -1,5 +1,20 @@
 ## Structured Concurrency
 
+async, launch 와 같은 코루틴 빌더 함수를 사용할 때 각각의 비동기 식의 순서를 조율해야 할 경우가 있고 동기적으로 수행해야 할 경우가 있습니다. 이 경우 가장 원초적인 방법으로는 중첩된 스코프에서 식을 실행하는 방법이 있습니다. 하지만, 중첩된 스코프가 복잡해지면, 고치기도 어렵고 읽기도 어려워지며 유지보수가 어려워지게 됩니다.<br/>
+
+이런 경우 조금 더 깔끔한 방법으로 동기연산으로 정의되어 있는 coroutineContext() 빌더 함수, withContext() 빌더 함수를 사용해서 해결합니다.<br/>
+
+- coroutineContext() 코루틴 스코프 빌더 함수
+- withContext() 코루틴 스코프 빌더 함수
+
+<br/>
+
+
+
+이번 문서에서는 대부분의 예제를 `coroutineContext()` 코루틴 스코프 빌더 함수를 사용하는 방식을 설명했는데, 가장 마지막 챕터에 `withContext()` 를 사용하는 경우 역시 예제로 정리해두었습니다.<br/>
+
+<br/>
+
 
 
 ## Structured Concurrency 란?
@@ -426,6 +441,125 @@ Process finished with exit code 0
 ```
 
 <br/>
+
+
+
+## e.g. withContext
+
+### e.g 1. context 공유 여부 확인
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(Dispatchers.Default).launch {
+      log.info("(before) 부모 코루틴 컨텍스트 : ${this.coroutineContext}")
+
+      withContext(Dispatchers.IO){
+        log.info("withContext 컨텍스트 : ${this.coroutineContext}")
+      }
+
+      log.info("(after) 부모 코루틴 컨텍스트 : ${this.coroutineContext}")
+    }
+
+    job.join()
+  }
+}
+```
+
+<br/>
+
+
+
+출력결과를 살펴보면, withContext() 가 사용하는 컨텍스트는 부모 코루틴 컨텍스트는 전혀 다르다는 것을 알 수 있습니다.<br/>
+
+
+
+출력결과
+
+```plain
+13:49:45.660 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (before) 부모 코루틴 컨텍스트 : [StandaloneCoroutine{Active}@3b805dfa, Dispatchers.Default]
+13:49:45.666 [DefaultDispatcher-worker-1] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- withContext 컨텍스트 : [DispatchedCoroutine{Active}@58c189ea, Dispatchers.IO]
+13:49:45.667 [DefaultDispatcher-worker-3] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (after) 부모 코루틴 컨텍스트 : [StandaloneCoroutine{Active}@3b805dfa, Dispatchers.Default]
+
+Process finished with exit code 0
+```
+
+<br/>
+
+
+
+### e.g 2. 비동기 코드 동기연산 예제
+
+```kotlin
+package io.chagchagchag.demo.kotlin_coroutine.structured_concurrency
+
+import io.chagchagchag.demo.kotlin_coroutine.helper.logger
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
+
+fun main(){
+  val log = logger()
+
+  runBlocking {
+    val job = CoroutineScope(EmptyCoroutineContext).launch {
+      val sum = sumCart2()
+      log.info("(1)")
+      log.info("cartSum = $sum")
+      log.info("(2)")
+      assert(sum == 5000 + 7000 + 3000)
+    }
+
+    job.join()
+  }
+}
+
+suspend fun sumCart2() : Int{
+  return withContext(Dispatchers.IO){
+    val applePrice = async {
+      delay(1000)
+      5000
+    }
+    val bananaPrice = async {
+      delay(1000)
+      7000
+    }
+    val carrotPrice = async {
+      delay(1000)
+      3000
+    }
+    applePrice.await() + bananaPrice.await() + carrotPrice.await()
+  }
+}
+```
+
+<br/>
+
+
+
+확인해보면, 각각의 async 를 수행한 후에 합산이 정상적으로 잘 이루어짐을 확인 가능합니다.<br/>
+
+
+
+출력결과
+
+```plain
+14:00:51.869 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (1)
+14:00:51.874 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- cartSum = 15000
+14:00:51.875 [DefaultDispatcher-worker-2] INFO io.chagchagchag.demo.kotlin_coroutine.helper.LoggingObject -- (2)
+
+Process finished with exit code 0
+```
+
+
+
+
 
 
 
