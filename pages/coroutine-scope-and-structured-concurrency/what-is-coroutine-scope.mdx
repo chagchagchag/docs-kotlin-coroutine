@@ -10,6 +10,40 @@ CoroutineScope 를 만들때에는 보통 Coroutine Builder 라고 불리는 함
 
 
 
+## CoroutineScope 와 CoroutineContext, CoroutineDispatcher
+
+CoroutineDispatcher 역시도 CoroutineContext 의 일종입니다. CoroutineDispatcher 의 정의를 살펴보면 아래와 같습니다.
+
+```kotlin
+abstract class CoroutineDispatcher : AbstractCoroutineContextElement, ContinuationInterceptor
+```
+
+AbstractCoroutineContextElement 라는 것은 CoroutineContext.Element 를 상속하고 있는 일종의 CoroutineContext 타입의 객체입니다.<br/>
+
+
+
+CoroutineScope 는 자기 자신의 Scope 를 만들 때 CoroutineContext 를 소유한 채로 생성합니다. 실행 시에 필요한 Continuation 등과 같은 문맥을 보관하고 있어야 중단했다가 다시 재개할 수 있기 때문입니다. 이렇게 문맥을 소유해야 하기에 CoroutineScope 는 아래와 같은 방식으로 CoroutineContext 를 소유한 채로 CoroutineScope 가 생성됩니다.<br/>
+
+
+
+**e.g. 코루틴 스코프 빌더 함수 withContext**
+
+```kotlin
+suspend fun <T> withContext(context: CoroutineContext, block: suspend CoroutineScope.() -> T): T(source)
+```
+
+<br/>
+
+
+
+코루틴 스코프를 생성하는 대표적인 빌더 함수인 `withContext()` 를 살펴보면 위에서 이야기했듯 첫번째 인자로는 CoroutineContext 를 받습니다. 그리고 마지막 인자는 람다인데, 조금만 더 자세하게 생각해보면 CoroutineScope 라는 interface 에 대한 익명의 객체를 생성해서 람다 바디로 넘겨준다는 사실을 알 수 있습니다.<br/>
+
+
+
+withContext() 의 경우에는 연산의 결과를 넘겨주는 코루틴 스코프 생성 용도의 빌더함수입니다. 비슷한 함수로는 coroutineScope()가 있습니다.<br/>
+
+
+
 ## UML - CoroutineScope 와 CoroutineContext 의 연관관계
 
 ![](./img/what-is-coroutine-scope/uml.png)
